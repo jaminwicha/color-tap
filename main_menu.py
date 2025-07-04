@@ -19,6 +19,12 @@ class MainMenu:
         self.available_levels = self.level_persistence.list_levels()
         self.selected_level = 0
         self.preview_level = None
+        
+        # Initialize audio system and start hip-hop music immediately
+        from audio_system import AudioManager
+        self.audio_manager = AudioManager()
+        self.audio_manager.start_background_music()
+        
         self.generate_preview_level()
     
     def generate_preview_level(self):
@@ -138,9 +144,17 @@ class MainMenu:
         """Refresh the list of available levels"""
         self.available_levels = self.level_persistence.list_levels()
     
+    def update_audio(self):
+        """Update the audio system"""
+        if hasattr(self, 'audio_manager'):
+            self.audio_manager.update()
+    
     def draw(self):
         """Draw the current menu state"""
         self.screen.fill(Color.WHITE)
+        
+        # Update audio system
+        self.update_audio()
         
         if self.state == MenuState.MAIN_MENU:
             self.draw_main_menu()
@@ -183,9 +197,15 @@ class MainMenu:
             
             self.screen.blit(text, text_rect)
         
-        # Draw preview if available
+        # Draw preview if available (always show when hovering over Start New Game)
         if self.preview_level and self.selected_option == 0:
             self.draw_level_preview()
+        elif self.preview_level is None and self.selected_option == 0:
+            # Show loading message if preview is still being generated
+            loading_font = pygame.font.Font(None, 24)
+            loading_text = loading_font.render("Generating level preview...", True, Color.BLACK)
+            loading_rect = loading_text.get_rect(center=(150, 450))
+            self.screen.blit(loading_text, loading_rect)
         
         # Controls
         control_font = pygame.font.Font(None, 24)

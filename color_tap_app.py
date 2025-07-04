@@ -112,7 +112,13 @@ class ColorTapApp:
                     if self.game.show_impossible_popup:
                         self.game.show_impossible_popup = False
         
-        # Update game
+        # Update game systems
+        dt = 0.016  # 60 FPS
+        self.game.animation_manager.update(dt)
+        self.game.message_display.update(dt)
+        self.game.audio_manager.update()
+        
+        # Update shapes
         for shape in self.game.shapes:
             shape.update()
         
@@ -123,14 +129,29 @@ class ColorTapApp:
             self.return_to_menu()
             return
         
-        # Draw game
-        self.game.screen.fill(self.game.background_color)
+        # Draw everything with enhanced visuals
+        # Fill with base background color first
+        self.screen.fill(self.game.current_palette.background)
+        
+        # Draw background transitions (these will paint the new color)
+        self.game.animation_manager.draw_background_effects(self.screen, self.game.background_color)
+        
+        # Draw border
         self.game.draw_border()
         
+        # Draw shapes
         for shape in self.game.shapes:
-            shape.draw(self.game.screen)
+            shape.draw(self.screen)
         
+        # Draw particle effects on top
+        self.game.animation_manager.draw_particle_effects(self.screen)
+        
+        # Draw UI elements
         self.game.draw_ui()
+        
+        # Draw friendly messages
+        message_pos = (WINDOW_WIDTH // 2, WINDOW_HEIGHT - 100)
+        self.game.message_display.draw(self.screen, message_pos, self.game.current_palette)
         
         pygame.display.flip()
         self.clock.tick(FPS)

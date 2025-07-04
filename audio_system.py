@@ -7,13 +7,23 @@ from threading import Thread
 import time
 
 class FractalMusicGenerator:
-    """Generates ambient electronic music using fractal algorithms"""
+    """Generates ambient electronic music with hip-hop rhythms using fractal algorithms"""
     
     def __init__(self, sample_rate: int = 44100):
         self.sample_rate = sample_rate
         self.base_frequency = 220.0  # A3
         self.golden_ratio = (1 + math.sqrt(5)) / 2
         self.fibonacci_sequence = self._generate_fibonacci(20)
+        
+        # Hip-hop rhythm parameters
+        self.bpm = 85  # Typical hip-hop tempo
+        self.beat_duration = 60.0 / self.bpm  # Duration of one beat in seconds
+        self.bar_duration = self.beat_duration * 4  # 4/4 time signature
+        
+        # Fractal rhythm patterns (using Fibonacci ratios)
+        self.kick_pattern = [1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0]  # 16th note pattern
+        self.snare_pattern = [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]  # Snare on 2 and 4
+        self.hihat_pattern = [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1]  # Hi-hat pattern
         
     def _generate_fibonacci(self, n: int) -> List[int]:
         """Generate Fibonacci sequence"""
@@ -74,6 +84,167 @@ class FractalMusicGenerator:
         envelope[-decay_samples:] = np.linspace(1, 0, decay_samples)
         
         return wave * envelope
+    
+    def generate_kick_drum(self, duration: float = 0.1) -> np.ndarray:
+        """Generate a deep kick drum sound"""
+        samples = int(duration * self.sample_rate)
+        t = np.linspace(0, duration, samples)
+        
+        # Start with low frequency that drops quickly
+        frequency_sweep = 60 * np.exp(-t * 50)  # Frequency drops from 60Hz
+        
+        # Generate the tone with frequency sweep
+        wave = 0.8 * np.sin(2 * np.pi * frequency_sweep * t)
+        
+        # Add some noise for texture
+        noise = 0.2 * np.random.normal(0, 1, samples)
+        wave += noise
+        
+        # Sharp attack, quick decay envelope
+        envelope = np.exp(-t * 25)
+        
+        return wave * envelope
+    
+    def generate_snare_drum(self, duration: float = 0.15) -> np.ndarray:
+        """Generate a snappy snare drum sound"""
+        samples = int(duration * self.sample_rate)
+        t = np.linspace(0, duration, samples)
+        
+        # Mix of tone and noise for snare character
+        tone = 0.3 * np.sin(2 * np.pi * 200 * t)  # 200Hz tone component
+        noise = 0.7 * np.random.normal(0, 1, samples)  # White noise for snare crack
+        
+        wave = tone + noise
+        
+        # Quick attack, medium decay
+        envelope = np.exp(-t * 15)
+        
+        return wave * envelope
+    
+    def generate_hihat(self, duration: float = 0.05) -> np.ndarray:
+        """Generate a crispy hi-hat sound"""
+        samples = int(duration * self.sample_rate)
+        t = np.linspace(0, duration, samples)
+        
+        # High-frequency noise for hi-hat
+        wave = 0.4 * np.random.normal(0, 1, samples)
+        
+        # Apply high-pass filtering effect (emphasize high frequencies)
+        for i in range(1, len(wave)):
+            wave[i] = wave[i] - 0.95 * wave[i-1]
+        
+        # Very quick decay
+        envelope = np.exp(-t * 40)
+        
+        return wave * envelope
+    
+    def generate_bass_line(self, duration: float, base_freq: float = 55.0) -> np.ndarray:
+        """Generate a deep bass line using fractal patterns"""
+        samples = int(duration * self.sample_rate)
+        t = np.linspace(0, duration, samples)
+        
+        # Create bass pattern using Fibonacci sequence
+        num_notes = 8
+        note_duration = duration / num_notes
+        bass_wave = np.zeros(samples)
+        
+        for i in range(num_notes):
+            start_sample = int(i * note_duration * self.sample_rate)
+            end_sample = int((i + 1) * note_duration * self.sample_rate)
+            note_samples = end_sample - start_sample
+            
+            if note_samples <= 0:
+                continue
+            
+            # Use Fibonacci ratios for note frequencies
+            fib_ratio = self.fibonacci_sequence[i % len(self.fibonacci_sequence)] / self.fibonacci_sequence[0]
+            note_freq = base_freq * (1 + fib_ratio * 0.1)  # Subtle frequency variations
+            
+            note_t = np.linspace(0, note_duration, note_samples)
+            
+            # Generate bass note with harmonics
+            note_wave = np.zeros(note_samples)
+            note_wave += 0.6 * np.sin(2 * np.pi * note_freq * note_t)  # Fundamental
+            note_wave += 0.3 * np.sin(2 * np.pi * note_freq * 2 * note_t)  # Octave
+            note_wave += 0.1 * np.sin(2 * np.pi * note_freq * 3 * note_t)  # Third harmonic
+            
+            # Bass envelope with attack and sustain
+            attack_samples = int(0.01 * self.sample_rate)  # 10ms attack
+            if len(note_wave) > attack_samples:
+                envelope = np.ones(note_samples)
+                envelope[:attack_samples] = np.linspace(0, 1, attack_samples)
+                # Gentle decay toward end
+                decay_samples = int(0.1 * self.sample_rate)
+                if len(note_wave) > decay_samples:
+                    envelope[-decay_samples:] = np.linspace(1, 0.7, decay_samples)
+                note_wave *= envelope
+            
+            bass_wave[start_sample:end_sample] += note_wave
+        
+        return bass_wave
+    
+    def create_hip_hop_track(self, total_duration: float) -> np.ndarray:
+        """Create a complete hip-hop inspired track with fractal elements"""
+        full_samples = int(total_duration * self.sample_rate)
+        track = np.zeros(full_samples)
+        
+        # Calculate timing
+        sixteenth_note_duration = self.beat_duration / 4
+        bar_samples = int(self.bar_duration * self.sample_rate)
+        
+        # Generate drum samples
+        kick_sample = self.generate_kick_drum()
+        snare_sample = self.generate_snare_drum()
+        hihat_sample = self.generate_hihat()
+        
+        # Loop through bars
+        num_bars = int(total_duration / self.bar_duration)
+        
+        for bar in range(num_bars):
+            bar_start = bar * bar_samples
+            
+            # Add bass line for this bar
+            bass_duration = self.bar_duration
+            bass_line = self.generate_bass_line(bass_duration)
+            bass_end = min(bar_start + len(bass_line), full_samples)
+            track[bar_start:bass_end] += bass_line[:bass_end - bar_start] * 0.6
+            
+            # Add drum patterns
+            for step in range(16):  # 16 sixteenth notes per bar
+                step_time = bar * self.bar_duration + step * sixteenth_note_duration
+                step_sample = int(step_time * self.sample_rate)
+                
+                if step_sample >= full_samples:
+                    break
+                
+                # Apply fractal variations to patterns
+                pattern_variation = self.fibonacci_sequence[step % len(self.fibonacci_sequence)] % 3
+                
+                # Kick drum
+                if self.kick_pattern[step] and (pattern_variation == 0 or step % 4 == 0):
+                    end_sample = min(step_sample + len(kick_sample), full_samples)
+                    track[step_sample:end_sample] += kick_sample[:end_sample - step_sample] * 0.8
+                
+                # Snare drum
+                if self.snare_pattern[step] and (pattern_variation <= 1):
+                    end_sample = min(step_sample + len(snare_sample), full_samples)
+                    track[step_sample:end_sample] += snare_sample[:end_sample - step_sample] * 0.7
+                
+                # Hi-hat
+                if self.hihat_pattern[step] and pattern_variation <= 2:
+                    end_sample = min(step_sample + len(hihat_sample), full_samples)
+                    track[step_sample:end_sample] += hihat_sample[:end_sample - step_sample] * 0.5
+        
+        # Add subtle ambient tones using original fractal method
+        ambient_layer = self.create_ambient_sequence(total_duration)
+        track += ambient_layer * 0.3  # Mix in ambient at lower volume
+        
+        # Normalize to prevent clipping
+        max_val = np.max(np.abs(track))
+        if max_val > 0:
+            track = track / max_val * 0.8
+        
+        return track
     
     def create_ambient_sequence(self, total_duration: float) -> np.ndarray:
         """Create a complete ambient music sequence"""
@@ -238,15 +409,16 @@ class AudioManager:
         self.music_generator = FractalMusicGenerator(self.sample_rate)
         self.sfx_generator = SoundEffectGenerator(self.sample_rate)
         
-        self.ambient_channel = pygame.mixer.Channel(0)
+        self.music_channel = pygame.mixer.Channel(0)
         self.sfx_channel = pygame.mixer.Channel(1)
         
-        self.ambient_volume = 0.3
+        self.music_volume = 0.4  # Hip-hop music volume
         self.sfx_volume = 0.7
         
-        # Generate initial ambient music
-        self.current_ambient = None
-        self.generate_new_ambient_music()
+        # Generate initial hip-hop track
+        self.current_track = None
+        self.music_started = False
+        self.generate_new_hip_hop_track()
         
     def numpy_to_pygame_sound(self, wave: np.ndarray) -> pygame.mixer.Sound:
         """Convert numpy array to pygame Sound object"""
@@ -261,20 +433,26 @@ class AudioManager:
             
         return pygame.mixer.Sound(stereo_wave)
     
-    def generate_new_ambient_music(self):
-        """Generate new ambient music"""
+    def generate_new_hip_hop_track(self):
+        """Generate new hip-hop inspired music track"""
         def generate_async():
-            ambient_sequence = self.music_generator.create_ambient_sequence(30.0)  # 30 seconds
-            self.current_ambient = self.numpy_to_pygame_sound(ambient_sequence)
+            # Generate a longer hip-hop track (45 seconds)
+            hip_hop_track = self.music_generator.create_hip_hop_track(45.0)
+            self.current_track = self.numpy_to_pygame_sound(hip_hop_track)
         
         # Generate in background thread to avoid blocking
         Thread(target=generate_async, daemon=True).start()
     
+    def start_background_music(self):
+        """Start playing background hip-hop music - call this from title screen"""
+        if not self.music_started and self.current_track:
+            self.music_channel.play(self.current_track, loops=-1)
+            self.music_channel.set_volume(self.music_volume)
+            self.music_started = True
+    
     def play_ambient_music(self):
-        """Start playing ambient music"""
-        if self.current_ambient and not self.ambient_channel.get_busy():
-            self.ambient_channel.play(self.current_ambient, loops=-1)
-            self.ambient_channel.set_volume(self.ambient_volume)
+        """Legacy method - now starts hip-hop background music"""
+        self.start_background_music()
     
     def play_merge_sound(self, color: Tuple[int, int, int]):
         """Play merge sound effect"""
@@ -304,11 +482,11 @@ class AudioManager:
         self.sfx_channel.play(sound)
         self.sfx_channel.set_volume(self.sfx_volume * 0.5)
     
-    def set_ambient_volume(self, volume: float):
-        """Set ambient music volume"""
-        self.ambient_volume = max(0.0, min(1.0, volume))
-        if self.ambient_channel.get_busy():
-            self.ambient_channel.set_volume(self.ambient_volume)
+    def set_music_volume(self, volume: float):
+        """Set background music volume"""
+        self.music_volume = max(0.0, min(1.0, volume))
+        if self.music_channel.get_busy():
+            self.music_channel.set_volume(self.music_volume)
     
     def set_sfx_volume(self, volume: float):
         """Set sound effects volume"""
@@ -320,10 +498,14 @@ class AudioManager:
     
     def update(self):
         """Update audio system"""
-        # Check if we need to generate new ambient music
-        if not self.ambient_channel.get_busy() and self.current_ambient:
-            self.play_ambient_music()
+        # Start music if not already started and track is ready
+        if not self.music_started and self.current_track:
+            self.start_background_music()
         
-        # Occasionally generate new ambient music for variety
-        if random.random() < 0.001:  # Low probability per frame
-            self.generate_new_ambient_music()
+        # Check if we need to restart music
+        if not self.music_channel.get_busy() and self.current_track:
+            self.start_background_music()
+        
+        # Occasionally generate new hip-hop track for variety
+        if random.random() < 0.0005:  # Low probability per frame
+            self.generate_new_hip_hop_track()

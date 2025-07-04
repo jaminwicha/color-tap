@@ -195,7 +195,9 @@ class Game:
             self.show_impossible_popup = True
     
     def draw_border(self):
-        pygame.draw.rect(self.screen, self.border_color, 
+        # Use target color for border to show what color needs to be matched
+        border_color = self.target_color if hasattr(self, 'target_color') else self.current_palette.primary
+        pygame.draw.rect(self.screen, border_color, 
                         (0, 0, WINDOW_WIDTH, WINDOW_HEIGHT), GAME_SETTINGS['border_width'])
     
     def draw_ui(self):

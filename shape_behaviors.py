@@ -18,20 +18,30 @@ class Shape(ABC):
     
     def update(self):
         if not self.being_dragged:
+            # Enhanced smooth movement with interpolation
             self.x += self.velocity_x
             self.y += self.velocity_y
             
-            self.velocity_x *= self.friction
-            self.velocity_y *= self.friction
+            # More gradual friction for buttery movement
+            enhanced_friction = 0.92
+            self.velocity_x *= enhanced_friction
+            self.velocity_y *= enhanced_friction
+            
+            # Apply small random perturbation for more natural, zen-like movement
+            if abs(self.velocity_x) > 0.1 or abs(self.velocity_y) > 0.1:
+                import random
+                self.velocity_x += (random.random() - 0.5) * 0.01
+                self.velocity_y += (random.random() - 0.5) * 0.01
             
             max_dimension = self.get_max_dimension()
             
+            # Softer boundary bouncing with dampening
             if self.x - max_dimension <= 0 or self.x + max_dimension >= WINDOW_WIDTH:
-                self.velocity_x = -self.velocity_x
+                self.velocity_x = -self.velocity_x * 0.7  # Dampen the bounce
                 self.x = max(max_dimension, min(WINDOW_WIDTH - max_dimension, self.x))
             
             if self.y - max_dimension <= 0 or self.y + max_dimension >= WINDOW_HEIGHT:
-                self.velocity_y = -self.velocity_y
+                self.velocity_y = -self.velocity_y * 0.7  # Dampen the bounce
                 self.y = max(max_dimension, min(WINDOW_HEIGHT - max_dimension, self.y))
     
     @abstractmethod
@@ -64,14 +74,41 @@ class Shape(ABC):
         distance = math.sqrt(dx * dx + dy * dy)
         
         if distance > 0:
+            # Normalize the collision vector
             dx /= distance
             dy /= distance
             
-            bounce_force = GAME_SETTINGS['bounce_force']
-            self.velocity_x += dx * bounce_force
-            self.velocity_y += dy * bounce_force
-            other_shape.velocity_x -= dx * bounce_force
-            other_shape.velocity_y -= dy * bounce_force
+            # Softer, more zen-like bounce force
+            zen_bounce_force = 3.5  # Reduced from harsh bouncing
+            
+            # Calculate relative velocities for more realistic physics
+            rel_vel_x = self.velocity_x - other_shape.velocity_x
+            rel_vel_y = self.velocity_y - other_shape.velocity_y
+            
+            # Dot product of relative velocity and collision normal
+            vel_along_normal = rel_vel_x * dx + rel_vel_y * dy
+            
+            # Don't resolve if velocities are separating
+            if vel_along_normal > 0:
+                return
+            
+            # Apply impulse with dampening for smooth, gentle collisions
+            impulse = zen_bounce_force * vel_along_normal * 0.6  # Dampening factor
+            
+            # Apply the impulse
+            self.velocity_x -= impulse * dx * 0.5
+            self.velocity_y -= impulse * dy * 0.5
+            other_shape.velocity_x += impulse * dx * 0.5
+            other_shape.velocity_y += impulse * dy * 0.5
+            
+            # Add slight separation to prevent sticking
+            separation_force = 0.5
+            overlap = (self.get_collision_radius() + other_shape.get_collision_radius()) - distance
+            if overlap > 0:
+                self.x += dx * overlap * separation_force
+                self.y += dy * overlap * separation_force
+                other_shape.x -= dx * overlap * separation_force
+                other_shape.y -= dy * overlap * separation_force
 
 class Circle(Shape):
     def draw(self, screen):
