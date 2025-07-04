@@ -80,6 +80,11 @@ class ColorTapApp:
     
     def run_game(self):
         """Run the game"""
+        # Safety check - if game is None, return to menu
+        if self.game is None:
+            self.current_state = "menu"
+            return
+            
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False

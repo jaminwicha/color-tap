@@ -192,10 +192,12 @@ class LevelValidator:
                     new_y = random.randint(max_dim + 30, WINDOW_HEIGHT - max_dim - 30)
                 
                 # Check if this position causes overlaps
-                temp_shape = type(shape)(new_x, new_y, shape.color, shape.size)
-                if hasattr(shape, 'width'):
-                    temp_shape.width = shape.width
-                    temp_shape.height = shape.height
+                if hasattr(shape, 'width') and hasattr(shape, 'height'):
+                    # Rectangle shape
+                    temp_shape = type(shape)(new_x, new_y, shape.color, shape.width, shape.height)
+                else:
+                    # Circle, Square, or Triangle
+                    temp_shape = type(shape)(new_x, new_y, shape.color, shape.size)
                 
                 valid_position = True
                 for existing_shape in fixed_shapes:

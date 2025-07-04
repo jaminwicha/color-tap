@@ -22,28 +22,72 @@ class MainMenu:
         self.generate_preview_level()
     
     def generate_preview_level(self):
-        """Generate a preview of the next random level with validation"""
+        """Generate a preview of the next random level with thorough validation"""
         from level_validator import LevelValidator
         
-        max_attempts = 5
-        for _ in range(max_attempts):
+        max_attempts = 10  # Increased attempts for better validation
+        for attempt in range(max_attempts):
             result = LevelGenerator.create_level()
             if result[0] is not None:
                 shapes, target_color, algorithm = result
                 
-                # Double-check validation before offering as preview
+                # Comprehensive validation before offering as preview
                 is_valid, issues = LevelValidator.validate_level(shapes, target_color)
                 
-                if is_valid:
-                    self.preview_level = {
-                        'shapes': shapes,
-                        'target_color': target_color,
-                        'algorithm': algorithm
-                    }
-                    return
+                # Additional check: ensure it's actually winnable with current shapes
+                is_winnable = LevelGenerator.is_level_winnable(shapes, target_color)
+                
+                if is_valid and is_winnable:
+                    # Final simulation check: try removing pairs and see if it stays winnable
+                    if self._simulate_level_winnability(shapes, target_color):
+                        self.preview_level = {
+                            'shapes': shapes,
+                            'target_color': target_color,
+                            'algorithm': algorithm
+                        }
+                        return
         
         # If we couldn't generate a valid level, clear preview
         self.preview_level = None
+    
+    def _simulate_level_winnability(self, shapes, target_color):
+        """Simulate removing shape pairs to ensure level stays winnable"""
+        from collections import Counter
+        from copy import deepcopy
+        
+        # Create a copy of shapes for simulation
+        test_shapes = deepcopy(shapes)
+        
+        # Simulate the game by removing matching pairs
+        while len(test_shapes) > 2:
+            pairs_removed = False
+            
+            # Find matching pairs
+            for i, shape1 in enumerate(test_shapes):
+                for j, shape2 in enumerate(test_shapes):
+                    if i >= j:
+                        continue
+                    
+                    if shape1.color == shape2.color:
+                        # Remove this pair
+                        test_shapes.remove(shape1)
+                        test_shapes.remove(shape2)
+                        pairs_removed = True
+                        
+                        # Check if still winnable after removal
+                        if not LevelGenerator.is_level_winnable(test_shapes, target_color):
+                            return False
+                        break
+                
+                if pairs_removed:
+                    break
+            
+            # If no pairs were found, check if we can still win
+            if not pairs_removed:
+                return LevelGenerator.is_level_winnable(test_shapes, target_color)
+        
+        # If we're down to 2 or fewer shapes, check final winnability
+        return LevelGenerator.is_level_winnable(test_shapes, target_color)
     
     def handle_input(self, event):
         """Handle menu input and return action"""

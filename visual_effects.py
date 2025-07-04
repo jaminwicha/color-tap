@@ -161,11 +161,72 @@ class ParticleSystem:
         for particle in self.particles:
             particle.draw(screen)
 
+class BackgroundTransition:
+    """Creates a growing rectangle transition for background color changes"""
+    
+    def __init__(self, center_x: int, center_y: int, target_color: Tuple[int, int, int], duration: float = 1.5):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.target_color = target_color
+        self.duration = duration
+        self.current_time = 0.0
+        self.active = True
+        
+        # Calculate max dimensions needed to cover screen
+        self.max_width = WINDOW_WIDTH + abs(center_x - WINDOW_WIDTH // 2) * 2
+        self.max_height = WINDOW_HEIGHT + abs(center_y - WINDOW_HEIGHT // 2) * 2
+        
+    def update(self, dt: float) -> bool:
+        """Update the transition. Returns True if still active"""
+        if not self.active:
+            return False
+            
+        self.current_time += dt
+        if self.current_time >= self.duration:
+            self.active = False
+            return False
+            
+        return True
+    
+    def get_progress(self) -> float:
+        """Get the progress of the transition (0.0 to 1.0)"""
+        return min(self.current_time / self.duration, 1.0)
+    
+    def get_dimensions(self) -> Tuple[int, int]:
+        """Get current width and height of the growing rectangle"""
+        progress = self.get_progress()
+        # Use easing function for smooth growth
+        eased_progress = self._ease_out_quart(progress)
+        width = int(eased_progress * self.max_width)
+        height = int(eased_progress * self.max_height)
+        return width, height
+    
+    def _ease_out_quart(self, t: float) -> float:
+        """Quartic easing out function for smooth animation"""
+        return 1 - pow(1 - t, 4)
+    
+    def draw(self, surface: pygame.Surface):
+        """Draw the growing rectangle transition"""
+        if not self.active:
+            return
+            
+        width, height = self.get_dimensions()
+        
+        if width > 0 and height > 0:
+            # Calculate rectangle position to center it on the merge point
+            rect_x = self.center_x - width // 2
+            rect_y = self.center_y - height // 2
+            
+            # Draw the growing rectangle
+            pygame.draw.rect(surface, self.target_color, 
+                           (rect_x, rect_y, width, height))
+
 class AnimationManager:
     """Manages all visual effects and animations"""
     
     def __init__(self):
         self.pulse_effects: List[PulseEffect] = []
+        self.background_transitions: List[BackgroundTransition] = []
         self.particle_system = ParticleSystem()
         self.shape_animations = {}
         
@@ -173,6 +234,11 @@ class AnimationManager:
         """Add a pulse effect for background color changes"""
         pulse = PulseEffect(x, y, target_color, 1.2)
         self.pulse_effects.append(pulse)
+    
+    def add_background_transition(self, x: int, y: int, target_color: Tuple[int, int, int]):
+        """Add a growing rectangle transition for background color changes"""
+        transition = BackgroundTransition(x, y, target_color, 1.5)
+        self.background_transitions.append(transition)
     
     def add_merge_effect(self, x: float, y: float, color: Tuple[int, int, int]):
         """Add visual effects for shape merging"""
@@ -195,6 +261,9 @@ class AnimationManager:
         # Update pulse effects
         self.pulse_effects = [p for p in self.pulse_effects if p.update(dt)]
         
+        # Update background transitions
+        self.background_transitions = [t for t in self.background_transitions if t.update(dt)]
+        
         # Update particle system
         self.particle_system.update(dt)
         
@@ -205,7 +274,12 @@ class AnimationManager:
                 del self.shape_animations[shape_id]
     
     def draw_background_effects(self, screen: pygame.Surface, background_color: Tuple[int, int, int]):
-        """Draw background effects like pulses"""
+        """Draw background effects like pulses and transitions"""
+        # Draw background transitions first (they change the background)
+        for transition in self.background_transitions:
+            transition.draw(screen)
+        
+        # Draw pulse effects on top
         for pulse in self.pulse_effects:
             pulse.draw(screen, background_color)
     

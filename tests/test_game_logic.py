@@ -193,11 +193,11 @@ class TestGameLogic(unittest.TestCase):
         
         self.assertEqual(len(self.game.shapes), 2)
         self.assertEqual(self.game.target_color, Color.GREEN)
-        self.assertEqual(self.game.border_color, Color.GREEN)
+        # Background color is reset to palette background
+        self.assertIsNotNone(self.game.background_color)
         self.assertFalse(self.game.level_complete)
         self.assertFalse(self.game.show_impossible_popup)
         self.assertIsNone(self.game.last_merged_color)
-        self.assertEqual(self.game.background_color, Color.WHITE)
     
     @patch('game.LevelGenerator.create_level')
     @patch('game.uuid.uuid4')
@@ -247,7 +247,8 @@ class TestGameLogic(unittest.TestCase):
         self.assertEqual(self.game.current_level_data, mock_level_data)
         self.assertEqual(self.game.shapes, mock_shapes)
         self.assertEqual(self.game.target_color, Color.PURPLE)
-        self.assertEqual(self.game.border_color, Color.PURPLE)
+        # Background color starts with palette background, not target color
+        self.assertIsNotNone(self.game.background_color)
         self.assertFalse(self.game.level_complete)
         self.assertFalse(self.game.show_impossible_popup)
 

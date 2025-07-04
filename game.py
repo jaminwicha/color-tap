@@ -87,11 +87,11 @@ class Game:
         self.current_level_data = level_data
         self.shapes = level_data.get_fresh_shapes()
         self.target_color = level_data.target_color
-        self.border_color = self.target_color
         self.show_impossible_popup = False
         self.level_complete = False
         self.last_merged_color = None
-        self.background_color = Color.WHITE
+        # Start with palette background, will change as shapes merge
+        self.background_color = self.current_palette.background
     
     def reset_to_original_level(self):
         if self.current_level_data:
@@ -131,9 +131,17 @@ class Game:
                         # Same color merge
                         self.last_merged_color = shape1.color
                         
-                        # Add pulse animation for background change
+                        # Change background color to the merged color
+                        self.background_color = shape1.color
+                        
+                        # Add animated background transition with growing rectangle
                         merge_center_x = (shape1.x + shape2.x) // 2
                         merge_center_y = (shape1.y + shape2.y) // 2
+                        self.animation_manager.add_background_transition(
+                            merge_center_x, merge_center_y, shape1.color
+                        )
+                        
+                        # Add pulse animation for extra effect
                         self.animation_manager.add_background_pulse(
                             merge_center_x, merge_center_y, shape1.color
                         )
@@ -168,12 +176,12 @@ class Game:
                             bounce_msg = FriendlyMessages.get_random_message("bounce_encouragement")
                             self.message_display.show_message(bounce_msg, MessageType.INFO, 1.5)
         
+        # Remove shapes one by one and check impossibility after each removal
         for shape in shapes_to_remove:
             if shape in self.shapes:
                 self.shapes.remove(shape)
-        
-        if shapes_to_remove:
-            self.check_level_possibility()
+                # Check if level is still possible after each removal
+                self.check_level_possibility()
         
         if len(self.shapes) == 0 and self.last_merged_color == self.target_color:
             self.level_complete = True
@@ -309,7 +317,10 @@ class Game:
             self.check_collisions()
             
             # Enhanced drawing with background effects
-            self.screen.fill(self.background_color)
+            # Fill with base background color first
+            self.screen.fill(self.current_palette.background)
+            
+            # Draw background transitions (these will paint the new color)
             self.animation_manager.draw_background_effects(self.screen, self.background_color)
             
             # Draw border with current palette
