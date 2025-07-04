@@ -1,5 +1,6 @@
 import random
 from shape_behaviors import Circle, Square, Triangle, Rectangle
+from fused_shapes import FusedShape, StackingPatterns
 from config import AVAILABLE_COLORS, GAME_SETTINGS
 
 class ShapeFactory:
@@ -64,3 +65,31 @@ class ShapeFactory:
         if height is None:
             height = random.randint(15, 60)
         return Rectangle(x, y, color, width, height)
+    
+    @staticmethod
+    def create_fused_shape(x, y, color, component_shapes, stack_pattern="vertical"):
+        """Create a fused shape from component shapes"""
+        return FusedShape(x, y, color, component_shapes, stack_pattern)
+    
+    @staticmethod
+    def create_random_fused_shape(x, y, color=None, num_components=None):
+        """Create a random fused shape with random component shapes"""
+        if color is None:
+            color = random.choice(AVAILABLE_COLORS)
+        
+        if num_components is None:
+            num_components = random.randint(2, 4)
+        
+        # Create component shapes
+        component_shapes = []
+        for i in range(num_components):
+            # Create shapes at temporary positions (will be repositioned by FusedShape)
+            temp_x = x + random.randint(-20, 20)
+            temp_y = y + random.randint(-20, 20)
+            component = ShapeFactory.create_random_shape(temp_x, temp_y, color)
+            component_shapes.append(component)
+        
+        # Choose random stacking pattern
+        pattern = StackingPatterns.get_random_pattern()
+        
+        return FusedShape(x, y, color, component_shapes, pattern)

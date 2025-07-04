@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime
 from shape_factory import ShapeFactory
+from fused_shapes import FusedShape, StackingPatterns
 
 class LevelData:
     def __init__(self, level_id, shapes, target_color, algorithm_used):
@@ -25,6 +26,13 @@ class LevelData:
             shape_data['width'] = shape.width
         if hasattr(shape, 'height'):
             shape_data['height'] = shape.height
+        
+        # Handle FusedShape serialization
+        if isinstance(shape, FusedShape):
+            shape_data['stack_pattern'] = shape.stack_pattern
+            shape_data['component_shapes'] = [self.shape_to_dict(component) for component in shape.component_shapes]
+            shape_data['total_width'] = shape.total_width
+            shape_data['total_height'] = shape.total_height
             
         return shape_data
     
@@ -33,7 +41,11 @@ class LevelData:
         x, y = shape_dict['x'], shape_dict['y']
         color = tuple(shape_dict['color'])  # Convert list back to tuple
         
-        if shape_type == 'Circle':
+        if shape_type == 'FusedShape':
+            # Reconstruct component shapes first
+            component_shapes = [self.dict_to_shape(component_dict) for component_dict in shape_dict['component_shapes']]
+            return FusedShape(x, y, color, component_shapes, shape_dict['stack_pattern'])
+        elif shape_type == 'Circle':
             return ShapeFactory.create_circle(x, y, color, shape_dict.get('size'))
         elif shape_type == 'Square':
             return ShapeFactory.create_square(x, y, color, shape_dict.get('size'))

@@ -22,14 +22,28 @@ class MainMenu:
         self.generate_preview_level()
     
     def generate_preview_level(self):
-        """Generate a preview of the next random level"""
-        result = LevelGenerator.create_level()
-        if result[0] is not None:
-            self.preview_level = {
-                'shapes': result[0],
-                'target_color': result[1],
-                'algorithm': result[2]
-            }
+        """Generate a preview of the next random level with validation"""
+        from level_validator import LevelValidator
+        
+        max_attempts = 5
+        for _ in range(max_attempts):
+            result = LevelGenerator.create_level()
+            if result[0] is not None:
+                shapes, target_color, algorithm = result
+                
+                # Double-check validation before offering as preview
+                is_valid, issues = LevelValidator.validate_level(shapes, target_color)
+                
+                if is_valid:
+                    self.preview_level = {
+                        'shapes': shapes,
+                        'target_color': target_color,
+                        'algorithm': algorithm
+                    }
+                    return
+        
+        # If we couldn't generate a valid level, clear preview
+        self.preview_level = None
     
     def handle_input(self, event):
         """Handle menu input and return action"""

@@ -20,12 +20,14 @@ class TestGameLogic(unittest.TestCase):
     
     def test_game_initialization(self):
         """Test that game initializes with correct default values"""
-        self.assertEqual(self.game.background_color, Color.WHITE)
-        self.assertEqual(self.game.border_color, Color.BLACK)
+        # Background color is now based on aesthetic palette
+        self.assertIsNotNone(self.game.background_color)
         self.assertFalse(self.game.level_complete)
         self.assertFalse(self.game.show_impossible_popup)
         self.assertIsNone(self.game.dragging_shape)
         self.assertEqual(self.game.shapes, [])
+        # Test that the palette system is working
+        self.assertIsNotNone(self.game.current_palette)
     
     def test_handle_mouse_down_selects_shape(self):
         """Test that mouse down selects a shape under cursor"""
@@ -83,9 +85,13 @@ class TestGameLogic(unittest.TestCase):
         shape1 = Mock()
         shape1.color = Color.RED
         shape1.is_colliding_with.return_value = True
+        shape1.x = 100
+        shape1.y = 100
         
         shape2 = Mock()
         shape2.color = Color.RED
+        shape2.x = 120
+        shape2.y = 120
         
         self.game.shapes = [shape1, shape2]
         
@@ -95,16 +101,19 @@ class TestGameLogic(unittest.TestCase):
         # Shapes should be removed
         self.assertEqual(len(self.game.shapes), 0)
         self.assertEqual(self.game.last_merged_color, Color.RED)
-        self.assertEqual(self.game.background_color, Color.RED)
     
     def test_check_collisions_different_color_bounce(self):
         """Test that different color shapes bounce off each other"""
         shape1 = Mock()
         shape1.color = Color.RED
         shape1.is_colliding_with.return_value = True
+        shape1.x = 100
+        shape1.y = 100
         
         shape2 = Mock()
         shape2.color = Color.BLUE
+        shape2.x = 120
+        shape2.y = 120
         
         self.game.shapes = [shape1, shape2]
         

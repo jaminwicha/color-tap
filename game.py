@@ -1,16 +1,20 @@
 import pygame
 import sys
 import uuid
-from config import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, Color, GAME_SETTINGS
+import random
+from config import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, Color, GAME_SETTINGS, AESTHETIC_COLOR_SETS
 from level_generator import LevelGenerator
 from level_data import LevelData, LevelPersistence
+from visual_effects import AnimationManager, HighResolutionRenderer
+from audio_system import AudioManager
+from ui_system import AestheticPalettes, FriendlyMessages, StylishFont, MessageDisplay, MessageType
 
 class Game:
     def __init__(self, screen=None, clock=None):
         if screen is None:
             pygame.init()
             self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-            pygame.display.set_caption("Color Tap")
+            pygame.display.set_caption("Color Tap - Aesthetic Puzzle Adventure")
             self.clock = pygame.time.Clock()
             self.owns_display = True
         else:
@@ -18,9 +22,19 @@ class Game:
             self.clock = clock
             self.owns_display = False
         
-        self.background_color = Color.WHITE
-        self.border_color = Color.BLACK
-        self.target_color = Color.RED
+        # Choose a random aesthetic palette for this session
+        self.current_palette = AestheticPalettes.get_random_palette()
+        self.background_color = self.current_palette.background
+        self.target_color = Color.AURORA_MINT  # Will be updated based on level
+        
+        # Visual and audio systems
+        self.animation_manager = AnimationManager()
+        self.high_res_renderer = HighResolutionRenderer()
+        self.audio_manager = AudioManager()
+        self.font_system = StylishFont()
+        self.message_display = MessageDisplay(self.font_system)
+        
+        # Game state
         self.shapes = []
         self.dragging_shape = None
         self.last_merged_color = None
@@ -29,6 +43,13 @@ class Game:
         self.level_persistence = LevelPersistence()
         self.current_level_data = None
         self.return_to_menu = False
+        
+        # Show welcome message
+        welcome_msg = FriendlyMessages.get_random_message("welcome")
+        self.message_display.show_message(welcome_msg, MessageType.INFO, 4.0)
+        
+        # Start ambient music
+        self.audio_manager.play_ambient_music()
     
     def load_or_create_level(self):
         saved_level = self.level_persistence.load_current_level()
@@ -107,11 +128,45 @@ class Game:
                 
                 if shape1.is_colliding_with(shape2):
                     if shape1.color == shape2.color:
+                        # Same color merge
                         self.last_merged_color = shape1.color
-                        self.background_color = shape1.color
+                        
+                        # Add pulse animation for background change
+                        merge_center_x = (shape1.x + shape2.x) // 2
+                        merge_center_y = (shape1.y + shape2.y) // 2
+                        self.animation_manager.add_background_pulse(
+                            merge_center_x, merge_center_y, shape1.color
+                        )
+                        
+                        # Add merge visual effects
+                        self.animation_manager.add_merge_effect(
+                            merge_center_x, merge_center_y, shape1.color
+                        )
+                        
+                        # Play merge sound
+                        self.audio_manager.play_merge_sound(shape1.color)
+                        
+                        # Show encouraging message
+                        merge_msg = FriendlyMessages.get_random_message("successful_merge")
+                        self.message_display.show_message(merge_msg, MessageType.SUCCESS, 2.0)
+                        
                         shapes_to_remove.extend([shape1, shape2])
                     else:
+                        # Different color bounce
                         shape1.bounce_off(shape2)
+                        
+                        # Add bounce visual effects
+                        bounce_x = (shape1.x + shape2.x) // 2
+                        bounce_y = (shape1.y + shape2.y) // 2
+                        self.animation_manager.add_bounce_effect(bounce_x, bounce_y, shape1.color)
+                        
+                        # Play bounce sound
+                        self.audio_manager.play_bounce_sound(shape1.color)
+                        
+                        # Occasionally show encouragement
+                        if random.random() < 0.3:  # 30% chance
+                            bounce_msg = FriendlyMessages.get_random_message("bounce_encouragement")
+                            self.message_display.show_message(bounce_msg, MessageType.INFO, 1.5)
         
         for shape in shapes_to_remove:
             if shape in self.shapes:
@@ -122,6 +177,10 @@ class Game:
         
         if len(self.shapes) == 0 and self.last_merged_color == self.target_color:
             self.level_complete = True
+            # Play success sound and show celebration message
+            self.audio_manager.play_success_sound()
+            success_msg = FriendlyMessages.get_random_message("level_complete")
+            self.message_display.show_message(success_msg, MessageType.CELEBRATION, 5.0)
     
     def check_level_possibility(self):
         if len(self.shapes) > 0 and not LevelGenerator.is_level_winnable(self.shapes, self.target_color):
@@ -202,6 +261,7 @@ class Game:
     
     def run(self):
         running = True
+        dt = 0.016  # 60 FPS
         
         while running:
             for event in pygame.event.get():
@@ -209,6 +269,7 @@ class Game:
                     running = False
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     self.handle_mouse_down(event.pos)
+                    self.audio_manager.play_ui_sound("select")
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.handle_mouse_up()
                 elif event.type == pygame.MOUSEMOTION:
@@ -219,31 +280,56 @@ class Game:
                             self.reset_to_original_level()
                         else:
                             self.reset_to_original_level()
+                        self.audio_manager.play_ui_sound("confirm")
                     elif event.key == pygame.K_n:
                         self.create_new_level()
+                        self.audio_manager.play_ui_sound("confirm")
                     elif event.key == pygame.K_q:
                         if self.level_complete:
                             self.return_to_menu = True
                             running = False
+                        self.audio_manager.play_ui_sound("confirm")
                     elif event.key == pygame.K_m:
                         self.return_to_menu = True
                         running = False
+                        self.audio_manager.play_ui_sound("confirm")
                     elif event.key == pygame.K_ESCAPE:
                         if self.show_impossible_popup:
                             self.show_impossible_popup = False
+                        self.audio_manager.play_ui_sound("error")
+            
+            # Update systems
+            self.animation_manager.update(dt)
+            self.message_display.update(dt)
+            self.audio_manager.update()
             
             for shape in self.shapes:
                 shape.update()
             
             self.check_collisions()
             
+            # Enhanced drawing with background effects
             self.screen.fill(self.background_color)
-            self.draw_border()
+            self.animation_manager.draw_background_effects(self.screen, self.background_color)
             
+            # Draw border with current palette
+            border_color = self.current_palette.primary if hasattr(self, 'current_palette') else self.target_color
+            pygame.draw.rect(self.screen, border_color, 
+                           (0, 0, WINDOW_WIDTH, WINDOW_HEIGHT), GAME_SETTINGS['border_width'])
+            
+            # Draw shapes with high-resolution rendering for smoothness
             for shape in self.shapes:
                 shape.draw(self.screen)
             
+            # Draw particle effects on top
+            self.animation_manager.draw_particle_effects(self.screen)
+            
+            # Draw UI elements
             self.draw_ui()
+            
+            # Draw friendly messages
+            message_pos = (WINDOW_WIDTH // 2, WINDOW_HEIGHT - 100)
+            self.message_display.draw(self.screen, message_pos, self.current_palette)
             
             pygame.display.flip()
             self.clock.tick(FPS)

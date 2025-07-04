@@ -76,16 +76,22 @@ class TestLevelGenerator(unittest.TestCase):
         mock_get_strategy.return_value = mock_strategy
         
         # Mock shape creation
-        mock_shapes = [
-            Mock(color=Color.BLUE),
-            Mock(color=Color.GREEN),
-            Mock(color=Color.RED),  # Target shape 1
-            Mock(color=Color.RED)   # Target shape 2
-        ]
-        mock_create_shape.side_effect = mock_shapes
+        def create_mock_shape(x, y, color):
+            mock_shape = Mock()
+            mock_shape.color = color
+            mock_shape.get_distance_to.return_value = 100  # Far apart
+            mock_shape.get_collision_radius.return_value = 10
+            mock_shape.get_max_dimension.return_value = 20
+            mock_shape.x = x
+            mock_shape.y = y
+            return mock_shape
+        
+        mock_create_shape.side_effect = create_mock_shape
         
         # Mock is_level_winnable to return True
-        with patch.object(LevelGenerator, 'is_level_winnable', return_value=True):
+        with patch.object(LevelGenerator, 'is_level_winnable', return_value=True), \
+             patch('level_generator.LevelValidator.validate_level', return_value=(True, [])), \
+             patch('random.random', return_value=0.5):  # Skip fused shapes
             result = LevelGenerator.create_level()
         
         self.assertIsNotNone(result[0])  # shapes
@@ -107,16 +113,23 @@ class TestLevelGenerator(unittest.TestCase):
         mock_get_strategy.return_value = mock_strategy
         
         # Mock shape creation
-        mock_shapes = [
-            Mock(color=Color.BLUE),
-            Mock(color=Color.GREEN),
-            Mock(color=Color.RED),
-            Mock(color=Color.RED)
-        ]
-        mock_create_shape.side_effect = lambda *args: Mock(color=Color.BLUE)  # Never winnable
+        def create_mock_shape(x, y, color):
+            mock_shape = Mock()
+            mock_shape.color = Color.BLUE  # Never winnable
+            mock_shape.get_distance_to.return_value = 100  # Far apart
+            mock_shape.get_collision_radius.return_value = 10
+            mock_shape.get_max_dimension.return_value = 20
+            mock_shape.x = x
+            mock_shape.y = y
+            return mock_shape
+        
+        mock_create_shape.side_effect = create_mock_shape
         
         # Mock is_level_winnable to always return False
-        with patch.object(LevelGenerator, 'is_level_winnable', return_value=False):
+        with patch.object(LevelGenerator, 'is_level_winnable', return_value=False), \
+             patch('level_generator.LevelValidator.validate_level', return_value=(False, [])), \
+             patch('level_generator.LevelValidator.auto_fix_overlaps', return_value=[]), \
+             patch('random.random', return_value=0.5):  # Skip fused shapes
             result = LevelGenerator.create_level()
         
         self.assertIsNone(result[0])  # shapes should be None
@@ -170,14 +183,31 @@ class TestLevelGenerator(unittest.TestCase):
         with patch('level_generator.GenerationStrategyFactory.get_random_strategy') as mock_get_strategy, \
              patch('level_generator.ShapeFactory.create_random_shape') as mock_create_shape, \
              patch('random.choice') as mock_choice, \
-             patch.object(LevelGenerator, 'is_level_winnable', return_value=False):
+             patch.object(LevelGenerator, 'is_level_winnable', return_value=False), \
+             patch('level_generator.LevelValidator.validate_level', return_value=(False, [])), \
+             patch('level_generator.LevelValidator.auto_fix_overlaps') as mock_auto_fix:
             
             mock_strategy = Mock()
             mock_strategy.name = "TEST"
             mock_strategy.generate_positions.return_value = [(i*50, i*50) for i in range(6)]
             mock_get_strategy.return_value = mock_strategy
             mock_choice.return_value = Color.RED
-            mock_create_shape.return_value = Mock(color=Color.BLUE)
+            
+            # Create proper mock shape with required attributes
+            def create_mock_shape(x, y, color):
+                mock_shape = Mock()
+                mock_shape.color = color
+                mock_shape.get_distance_to.return_value = 100
+                mock_shape.get_collision_radius.return_value = 10
+                mock_shape.get_max_dimension.return_value = 20
+                mock_shape.x = x
+                mock_shape.y = y
+                return mock_shape
+            
+            mock_create_shape.side_effect = create_mock_shape
+            
+            # Mock auto_fix_overlaps to return empty list
+            mock_auto_fix.return_value = []
             
             LevelGenerator.create_level()
             
