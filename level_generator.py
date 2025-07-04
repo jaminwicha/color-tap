@@ -4,7 +4,8 @@ from generation_strategies import GenerationStrategyFactory
 from shape_factory import ShapeFactory
 from config import AVAILABLE_COLORS, GAME_SETTINGS
 from level_validator import LevelValidator
-from fused_shapes import StackingPatterns
+from nested_shapes import NestedShapeFactory
+from zone_level_generator import ZoneLevelGenerator
 
 class LevelGenerator:
     @staticmethod
@@ -14,80 +15,100 @@ class LevelGenerator:
     
     @staticmethod
     def create_level():
-        target_color = random.choice(AVAILABLE_COLORS)
-        strategy = GenerationStrategyFactory.get_random_strategy()
+        # Use zone-based generation 70% of the time, legacy generation 30% of the time
+        use_zone_generation = random.random() < 0.7
         
-        max_attempts = GAME_SETTINGS['max_level_attempts']
-        for attempt in range(max_attempts):
-            shapes = []
-            positions = strategy.generate_positions(GAME_SETTINGS['num_shapes'])
+        if use_zone_generation:
+            # Use the new recursive zone-based patchwork quilt generation
+            zone_generator = ZoneLevelGenerator()
+            try:
+                return zone_generator.create_zone_based_level()
+            except Exception as e:
+                # Fallback to legacy generation if zone generation fails
+                print(f"Zone generation failed: {e}, falling back to legacy")
+                use_zone_generation = False
+        
+        if not use_zone_generation:
+            # Legacy generation system
+            target_color = random.choice(AVAILABLE_COLORS)
+            strategy = GenerationStrategyFactory.get_random_strategy()
             
-            # Create regular shapes
-            for pos in positions:
-                color = random.choice(AVAILABLE_COLORS)
-                shape = ShapeFactory.create_random_shape(pos[0], pos[1], color)
-                shapes.append(shape)
+            max_attempts = GAME_SETTINGS['max_level_attempts']
+            for attempt in range(max_attempts):
+                shapes = []
+                positions = strategy.generate_positions(GAME_SETTINGS['num_shapes'])
+                
+                # Create regular shapes
+                for pos in positions:
+                    color = random.choice(AVAILABLE_COLORS)
+                    shape = ShapeFactory.create_random_shape(pos[0], pos[1], color)
+                    shapes.append(shape)
             
-            # Add target shapes
-            target_shape1 = ShapeFactory.create_random_shape(100, 100, target_color)
-            target_shape2 = ShapeFactory.create_random_shape(200, 150, target_color)
-            shapes.extend([target_shape1, target_shape2])
-            
-            # Add some fused shapes for aesthetic appeal (20% chance)
-            if random.random() < 0.2:
-                shapes = LevelGenerator.add_fused_shapes(shapes)
-            
-            # Validate the level thoroughly
-            is_valid, issues = LevelValidator.validate_level(shapes, target_color)
-            
-            if is_valid:
-                return shapes, target_color, strategy.name
-            elif attempt == max_attempts - 1:
-                # On final attempt, try to auto-fix issues
-                shapes = LevelValidator.auto_fix_overlaps(shapes)
-                is_valid, _ = LevelValidator.validate_level(shapes, target_color)
+                # Add target shapes
+                target_shape1 = ShapeFactory.create_random_shape(100, 100, target_color)
+                target_shape2 = ShapeFactory.create_random_shape(200, 150, target_color)
+                shapes.extend([target_shape1, target_shape2])
+                
+                # Add some nested shapes for aesthetic appeal (20% chance)
+                if random.random() < 0.2:
+                    shapes = LevelGenerator.add_nested_shapes(shapes)
+                
+                # Validate the level thoroughly
+                is_valid, issues = LevelValidator.validate_level(shapes, target_color)
+                
                 if is_valid:
                     return shapes, target_color, strategy.name
-        
-        return None, target_color, strategy.name
+                elif attempt == max_attempts - 1:
+                    # On final attempt, try to auto-fix issues
+                    shapes = LevelValidator.auto_fix_overlaps(shapes)
+                    is_valid, _ = LevelValidator.validate_level(shapes, target_color)
+                    if is_valid:
+                        return shapes, target_color, strategy.name
+            
+            return None, target_color, "legacy_generation"
     
     @staticmethod
-    def add_fused_shapes(shapes):
-        """Add some aesthetically pleasing fused shapes to the level"""
-        if len(shapes) < 4:
+    def add_nested_shapes(shapes):
+        """Add some aesthetically pleasing nested shapes to the level"""
+        if len(shapes) < 2:
             return shapes
         
-        # Find shapes that could be fused (same color, reasonably close)
-        fusion_candidates = LevelGenerator.find_fusion_candidates(shapes)
+        # Create some nested shapes by converting existing shapes
+        nested_candidates = [s for s in shapes if hasattr(s, 'color')]
         
-        if not fusion_candidates:
+        if len(nested_candidates) < 2:
             return shapes
         
-        # Pick one group to fuse
-        group_to_fuse = random.choice(fusion_candidates)
-        if len(group_to_fuse) < 2:
-            return shapes
+        # Pick 1-2 shapes to convert to nested shapes
+        num_to_convert = min(2, len(nested_candidates) // 3)
+        shapes_to_convert = random.sample(nested_candidates, num_to_convert)
         
-        # Remove original shapes
-        remaining_shapes = [s for s in shapes if s not in group_to_fuse]
+        remaining_shapes = [s for s in shapes if s not in shapes_to_convert]
         
-        # Create fused shape
-        center_x = sum(s.x for s in group_to_fuse) / len(group_to_fuse)
-        center_y = sum(s.y for s in group_to_fuse) / len(group_to_fuse)
-        
-        pattern = StackingPatterns.get_random_pattern()
-        
-        if pattern == "vertical":
-            fused_shape = StackingPatterns.create_vertical_stack(group_to_fuse, center_x, center_y)
-        elif pattern == "horizontal":
-            fused_shape = StackingPatterns.create_horizontal_stack(group_to_fuse, center_x, center_y)
-        elif pattern == "pyramid":
-            fused_shape = StackingPatterns.create_pyramid_stack(group_to_fuse, center_x, center_y)
-        else:  # circle
-            fused_shape = StackingPatterns.create_circle_stack(group_to_fuse, center_x, center_y)
-        
-        if fused_shape:
-            remaining_shapes.append(fused_shape)
+        # Create nested shapes
+        for original_shape in shapes_to_convert:
+            # Create shells with different colors
+            from config import AESTHETIC_COLOR_SETS
+            color_set = random.choice(list(AESTHETIC_COLOR_SETS.values()))
+            
+            num_shells = random.randint(2, 4)
+            shells = []
+            base_size = getattr(original_shape, 'size', 30)
+            
+            for i in range(num_shells):
+                shell_color = color_set[i % len(color_set)]
+                shell_size = base_size - (i * 6)
+                if shell_size > 5:  # Minimum shell size
+                    shells.append((shell_color, shell_size))
+            
+            if shells:
+                nested_shape = NestedShapeFactory.create_nested_shape(
+                    original_shape.x, original_shape.y, 
+                    num_shells=len(shells), 
+                    base_size=base_size,
+                    color_sequence=[shell[0] for shell in shells]
+                )
+                remaining_shapes.append(nested_shape)
         
         return remaining_shapes
     

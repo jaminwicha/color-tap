@@ -33,6 +33,60 @@ class Color:
     COSMIC_VIOLET = (138, 43, 226)
     COSMIC_INDIGO = (75, 0, 130)
     COSMIC_PINK = (255, 20, 147)
+    
+    # Warm Palette
+    WARM_CORAL = (255, 127, 80)
+    WARM_PEACH = (255, 218, 185)
+    WARM_GOLD = (255, 215, 0)
+    WARM_AMBER = (255, 191, 0)
+    
+    # Cool Palette
+    COOL_LAVENDER = (230, 230, 250)
+    COOL_PERIWINKLE = (204, 204, 255)
+    COOL_MINT = (189, 252, 201)
+    COOL_ICE = (176, 224, 230)
+    
+    # Tropical Palette
+    TROPICAL_MANGO = (255, 165, 79)
+    TROPICAL_LIME = (50, 205, 50)
+    TROPICAL_AQUA = (0, 255, 255)
+    TROPICAL_FLAMINGO = (252, 92, 101)
+    
+    # Vintage Palette
+    VINTAGE_ROSE = (217, 175, 217)
+    VINTAGE_SAGE = (157, 192, 139)
+    VINTAGE_CREAM = (255, 253, 208)
+    VINTAGE_DUSTY_BLUE = (156, 176, 171)
+    
+    # Neon Palette
+    NEON_PINK = (255, 16, 240)
+    NEON_GREEN = (57, 255, 20)
+    NEON_BLUE = (4, 217, 255)
+    NEON_YELLOW = (255, 255, 51)
+    
+    # Earth Palette
+    EARTH_TERRACOTTA = (204, 78, 92)
+    EARTH_OLIVE = (128, 128, 0)
+    EARTH_SAND = (194, 178, 128)
+    EARTH_CLAY = (139, 69, 19)
+    
+    # Pastel Palette
+    PASTEL_PINK = (255, 182, 193)
+    PASTEL_LAVENDER = (221, 160, 221)
+    PASTEL_MINT = (152, 251, 152)
+    PASTEL_PEACH = (255, 218, 185)
+    
+    # Deep Palette
+    DEEP_EMERALD = (0, 201, 87)
+    DEEP_SAPPHIRE = (15, 82, 186)
+    DEEP_RUBY = (224, 17, 95)
+    DEEP_AMETHYST = (153, 102, 204)
+    
+    # Monochrome Palette
+    MONO_CHARCOAL = (54, 69, 79)
+    MONO_SILVER = (192, 192, 192)
+    MONO_PLATINUM = (229, 228, 226)
+    MONO_PEARL = (234, 234, 234)
 
 # Beautiful color sets for different aesthetic themes
 AESTHETIC_COLOR_SETS = {
@@ -40,7 +94,16 @@ AESTHETIC_COLOR_SETS = {
     'sunset': [Color.SUNSET_CORAL, Color.SUNSET_YELLOW, Color.SUNSET_PURPLE],
     'ocean': [Color.OCEAN_TURQUOISE, Color.OCEAN_SKY, Color.OCEAN_PINK],
     'forest': [Color.FOREST_LIGHT_GREEN, Color.FOREST_GREEN, Color.FOREST_ORANGE],
-    'cosmic': [Color.COSMIC_VIOLET, Color.COSMIC_INDIGO, Color.COSMIC_PINK]
+    'cosmic': [Color.COSMIC_VIOLET, Color.COSMIC_INDIGO, Color.COSMIC_PINK],
+    'warm': [Color.WARM_CORAL, Color.WARM_PEACH, Color.WARM_GOLD, Color.WARM_AMBER],
+    'cool': [Color.COOL_LAVENDER, Color.COOL_PERIWINKLE, Color.COOL_MINT, Color.COOL_ICE],
+    'tropical': [Color.TROPICAL_MANGO, Color.TROPICAL_LIME, Color.TROPICAL_AQUA, Color.TROPICAL_FLAMINGO],
+    'vintage': [Color.VINTAGE_ROSE, Color.VINTAGE_SAGE, Color.VINTAGE_CREAM, Color.VINTAGE_DUSTY_BLUE],
+    'neon': [Color.NEON_PINK, Color.NEON_GREEN, Color.NEON_BLUE, Color.NEON_YELLOW],
+    'earth': [Color.EARTH_TERRACOTTA, Color.EARTH_OLIVE, Color.EARTH_SAND, Color.EARTH_CLAY],
+    'pastel': [Color.PASTEL_PINK, Color.PASTEL_LAVENDER, Color.PASTEL_MINT, Color.PASTEL_PEACH],
+    'deep': [Color.DEEP_EMERALD, Color.DEEP_SAPPHIRE, Color.DEEP_RUBY, Color.DEEP_AMETHYST],
+    'monochrome': [Color.MONO_CHARCOAL, Color.MONO_SILVER, Color.MONO_PLATINUM, Color.MONO_PEARL]
 }
 
 # Current available colors (can be switched based on theme)

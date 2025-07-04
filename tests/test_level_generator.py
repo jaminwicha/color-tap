@@ -125,16 +125,16 @@ class TestLevelGenerator(unittest.TestCase):
         
         mock_create_shape.side_effect = create_mock_shape
         
-        # Mock is_level_winnable to always return False
+        # Mock is_level_winnable to always return False and force legacy generation
         with patch.object(LevelGenerator, 'is_level_winnable', return_value=False), \
              patch('level_generator.LevelValidator.validate_level', return_value=(False, [])), \
              patch('level_generator.LevelValidator.auto_fix_overlaps', return_value=[]), \
-             patch('random.random', return_value=0.5):  # Skip fused shapes
+             patch('random.random', return_value=0.8):  # Force legacy generation (> 0.7)
             result = LevelGenerator.create_level()
         
         self.assertIsNone(result[0])  # shapes should be None
         self.assertEqual(result[1], target_color)  # target_color
-        self.assertEqual(result[2], "TEST_STRATEGY")  # algorithm
+        self.assertEqual(result[2], "legacy_generation")  # algorithm now returns this when failing
     
     def test_winnable_logic_with_real_shapes(self):
         """Test winnability logic with actual shape objects"""
@@ -183,6 +183,7 @@ class TestLevelGenerator(unittest.TestCase):
         with patch('level_generator.GenerationStrategyFactory.get_random_strategy') as mock_get_strategy, \
              patch('level_generator.ShapeFactory.create_random_shape') as mock_create_shape, \
              patch('random.choice') as mock_choice, \
+             patch('random.random', return_value=0.8), \
              patch.object(LevelGenerator, 'is_level_winnable', return_value=False), \
              patch('level_generator.LevelValidator.validate_level', return_value=(False, [])), \
              patch('level_generator.LevelValidator.auto_fix_overlaps') as mock_auto_fix:
@@ -197,6 +198,7 @@ class TestLevelGenerator(unittest.TestCase):
             def create_mock_shape(x, y, color):
                 mock_shape = Mock()
                 mock_shape.color = color
+                mock_shape.size = 30  # Add size attribute for nested shape conversion
                 mock_shape.get_distance_to.return_value = 100
                 mock_shape.get_collision_radius.return_value = 10
                 mock_shape.get_max_dimension.return_value = 20

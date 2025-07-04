@@ -149,6 +149,18 @@ class FusedShape(Shape):
     def get_component_count(self):
         """Get the number of shapes in this fused shape"""
         return len(self.component_shapes)
+    
+    def remove_component(self):
+        """Remove one component from the fused shape"""
+        if len(self.component_shapes) > 0:
+            self.component_shapes.pop()
+            # Recalculate dimensions
+            self.total_width = self._calculate_total_width()
+            self.total_height = self._calculate_total_height()
+            # Update positions
+            self._update_component_positions()
+            return True
+        return False
 
 class StackingPatterns:
     """Factory for creating different stacking patterns"""

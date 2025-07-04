@@ -129,7 +129,7 @@ class TestGameLogic(unittest.TestCase):
         self.game.last_merged_color = Color.RED
         self.game.target_color = Color.RED
         
-        self.game.check_collisions()
+        self.game.check_level_completion()
         
         self.assertTrue(self.game.level_complete)
     

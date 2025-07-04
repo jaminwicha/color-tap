@@ -9,40 +9,75 @@ class Shape(ABC):
         self.y = y
         self.color = color
         self.size = size
+        self.base_size = size  # Original size for pulsing
         self.velocity_x = 0
         self.velocity_y = 0
         self.being_dragged = False
         self.drag_offset_x = 0
         self.drag_offset_y = 0
         self.friction = GAME_SETTINGS['friction']
+        self.pulse_scale = 1.0  # Multiplier for pulsing effect
+        
+        # Physics properties for realistic movement
+        self.mass = size / 20.0  # Mass based on size
+        self.viscosity_resistance = 0.02  # Resistance like moving through gel
+        self.inertia_factor = 0.85  # How much the shape resists direction changes
+        self.momentum_x = 0.0  # Accumulated momentum
+        self.momentum_y = 0.0
     
-    def update(self):
+    def update(self, beat_time=0.0):
         if not self.being_dragged:
-            # Enhanced smooth movement with interpolation
-            self.x += self.velocity_x
-            self.y += self.velocity_y
+            # Physics-based movement with weight, viscosity, and inertia
             
-            # More gradual friction for buttery movement
-            enhanced_friction = 0.92
+            # Apply momentum (inertia effect)
+            self.momentum_x = self.momentum_x * self.inertia_factor + self.velocity_x * (1 - self.inertia_factor)
+            self.momentum_y = self.momentum_y * self.inertia_factor + self.velocity_y * (1 - self.inertia_factor)
+            
+            # Apply viscosity resistance (like moving through gel)
+            viscosity_factor = 1.0 - (self.viscosity_resistance * self.mass)
+            self.momentum_x *= viscosity_factor
+            self.momentum_y *= viscosity_factor
+            
+            # Update position with momentum
+            self.x += self.momentum_x
+            self.y += self.momentum_y
+            
+            # Enhanced friction for buttery movement (reduced for more realistic physics)
+            enhanced_friction = 0.94
             self.velocity_x *= enhanced_friction
             self.velocity_y *= enhanced_friction
             
-            # Apply small random perturbation for more natural, zen-like movement
+            # Apply small random perturbation for more natural movement
             if abs(self.velocity_x) > 0.1 or abs(self.velocity_y) > 0.1:
                 import random
-                self.velocity_x += (random.random() - 0.5) * 0.01
-                self.velocity_y += (random.random() - 0.5) * 0.01
+                perturbation = 0.005 / self.mass  # Heavier objects less affected by turbulence
+                self.velocity_x += (random.random() - 0.5) * perturbation
+                self.velocity_y += (random.random() - 0.5) * perturbation
             
             max_dimension = self.get_max_dimension()
             
-            # Softer boundary bouncing with dampening
+            # Softer boundary bouncing with mass-based dampening
+            bounce_dampening = 0.6 + (0.2 / self.mass)  # Heavier objects bounce less
+            
             if self.x - max_dimension <= 0 or self.x + max_dimension >= WINDOW_WIDTH:
-                self.velocity_x = -self.velocity_x * 0.7  # Dampen the bounce
+                self.velocity_x = -self.velocity_x * bounce_dampening
+                self.momentum_x = -self.momentum_x * bounce_dampening
                 self.x = max(max_dimension, min(WINDOW_WIDTH - max_dimension, self.x))
             
             if self.y - max_dimension <= 0 or self.y + max_dimension >= WINDOW_HEIGHT:
-                self.velocity_y = -self.velocity_y * 0.7  # Dampen the bounce
+                self.velocity_y = -self.velocity_y * bounce_dampening
+                self.momentum_y = -self.momentum_y * bounce_dampening
                 self.y = max(max_dimension, min(WINDOW_HEIGHT - max_dimension, self.y))
+        else:
+            # When being dragged, reset momentum for responsive feel
+            self.momentum_x = self.velocity_x
+            self.momentum_y = self.velocity_y
+        
+        # Update pulse effect based on music beat (only for non-static shapes)
+        import math
+        pulse_intensity = 0.08  # Subtle pulsing effect
+        self.pulse_scale = 1.0 + pulse_intensity * math.sin(beat_time * 2 * math.pi)
+        self.size = int(self.base_size * self.pulse_scale)
     
     @abstractmethod
     def draw(self, screen):
@@ -112,7 +147,46 @@ class Shape(ABC):
 
 class Circle(Shape):
     def draw(self, screen):
-        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.size)
+        # Draw with bevel/emboss effect and thicker border
+        center_x, center_y = int(self.x), int(self.y)
+        
+        # Create subtle bevel effect with layered circles
+        try:
+            import pygame.gfxdraw
+            
+            # Shadow (darker, slightly offset)
+            shadow_color = tuple(max(0, c - 40) for c in self.color)
+            pygame.gfxdraw.filled_circle(screen, center_x + 2, center_y + 2, self.size, shadow_color)
+            
+            # Main shape
+            pygame.gfxdraw.aacircle(screen, center_x, center_y, self.size, self.color)
+            pygame.gfxdraw.filled_circle(screen, center_x, center_y, self.size, self.color)
+            
+            # Highlight (lighter, offset opposite to shadow)
+            highlight_color = tuple(min(255, c + 30) for c in self.color)
+            pygame.gfxdraw.filled_circle(screen, center_x - 1, center_y - 1, self.size // 3, highlight_color)
+            
+            # Thicker border
+            border_color = tuple(max(0, c - 60) for c in self.color)
+            for i in range(4):  # Multiple circles for thick border
+                pygame.gfxdraw.aacircle(screen, center_x, center_y, self.size - i, border_color)
+            
+        except:
+            # Fallback with basic effects
+            # Shadow
+            shadow_color = tuple(max(0, c - 40) for c in self.color)
+            pygame.draw.circle(screen, shadow_color, (center_x + 2, center_y + 2), self.size)
+            
+            # Main shape
+            pygame.draw.circle(screen, self.color, (center_x, center_y), self.size)
+            
+            # Highlight
+            highlight_color = tuple(min(255, c + 30) for c in self.color)
+            pygame.draw.circle(screen, highlight_color, (center_x - 1, center_y - 1), self.size // 3)
+            
+            # Thick border
+            border_color = tuple(max(0, c - 60) for c in self.color)
+            pygame.draw.circle(screen, border_color, (center_x, center_y), self.size, 4)
     
     def contains_point(self, x, y):
         dx = x - self.x
@@ -127,9 +201,18 @@ class Circle(Shape):
 
 class Square(Shape):
     def draw(self, screen):
-        pygame.draw.rect(screen, self.color, 
-                        (int(self.x - self.size), int(self.y - self.size), 
-                         self.size * 2, self.size * 2))
+        import pygame  # Ensure pygame is available
+        # Use anti-aliased rectangle for smooth edges
+        rect = pygame.Rect(int(self.x - self.size), int(self.y - self.size), 
+                          self.size * 2, self.size * 2)
+        pygame.draw.rect(screen, self.color, rect)
+        
+        # Add subtle anti-aliasing border
+        try:
+            import pygame.gfxdraw
+            pygame.gfxdraw.rectangle(screen, rect, self.color)
+        except:
+            pass
     
     def contains_point(self, x, y):
         return (abs(x - self.x) < self.size and abs(y - self.y) < self.size)
@@ -143,11 +226,19 @@ class Square(Shape):
 class Triangle(Shape):
     def draw(self, screen):
         points = [
-            (self.x, self.y - self.size),
-            (self.x - self.size, self.y + self.size),
-            (self.x + self.size, self.y + self.size)
+            (int(self.x), int(self.y - self.size)),
+            (int(self.x - self.size), int(self.y + self.size)),
+            (int(self.x + self.size), int(self.y + self.size))
         ]
-        pygame.draw.polygon(screen, self.color, points)
+        
+        # Use anti-aliased polygon for smooth edges
+        try:
+            import pygame.gfxdraw
+            pygame.gfxdraw.aapolygon(screen, points, self.color)
+            pygame.gfxdraw.filled_polygon(screen, points, self.color)
+        except:
+            # Fallback to regular polygon
+            pygame.draw.polygon(screen, self.color, points)
     
     def contains_point(self, x, y):
         return math.sqrt((x - self.x)**2 + (y - self.y)**2) < self.size
@@ -165,9 +256,18 @@ class Rectangle(Shape):
         self.height = height
     
     def draw(self, screen):
-        pygame.draw.rect(screen, self.color, 
-                        (int(self.x - self.width // 2), int(self.y - self.height // 2), 
-                         self.width, self.height))
+        import pygame  # Ensure pygame is available
+        # Use anti-aliased rectangle for smooth edges
+        rect = pygame.Rect(int(self.x - self.width // 2), int(self.y - self.height // 2), 
+                          self.width, self.height)
+        pygame.draw.rect(screen, self.color, rect)
+        
+        # Add subtle anti-aliasing border
+        try:
+            import pygame.gfxdraw
+            pygame.gfxdraw.rectangle(screen, rect, self.color)
+        except:
+            pass
     
     def contains_point(self, x, y):
         return (abs(x - self.x) < self.width // 2 and abs(y - self.y) < self.height // 2)

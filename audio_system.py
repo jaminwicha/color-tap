@@ -15,8 +15,8 @@ class FractalMusicGenerator:
         self.golden_ratio = (1 + math.sqrt(5)) / 2
         self.fibonacci_sequence = self._generate_fibonacci(20)
         
-        # Hip-hop rhythm parameters
-        self.bpm = 85  # Typical hip-hop tempo
+        # Heartbeat rhythm parameters
+        self.bpm = 65  # Calm resting heartbeat tempo
         self.beat_duration = 60.0 / self.bpm  # Duration of one beat in seconds
         self.bar_duration = self.beat_duration * 4  # 4/4 time signature
         
@@ -261,7 +261,8 @@ class FractalMusicGenerator:
             # Randomize timing and frequency for each layer
             start_time = random.uniform(0, total_duration * 0.3)
             tone_duration = random.uniform(8, 15)
-            base_freq = random.choice(base_frequencies) / (2 ** random.randint(0, 2))
+            selected_freq = random.choice(base_frequencies)
+            base_freq = selected_freq / (2 ** random.randint(0, 2))
             pattern = random.choice(patterns)
             
             # Generate the tone
@@ -318,54 +319,97 @@ class SoundEffectGenerator:
         return wave
     
     def generate_bounce_sound(self, color: Tuple[int, int, int]) -> np.ndarray:
-        """Generate a sharp bounce sound"""
+        """Generate a water-drop like bounce sound"""
         r, g, b = color
-        base_freq = 400 + (r + g + b) / 3 * 3  # Higher frequency for bounce
+        base_freq = 200 + (r + g + b) / 3 * 2  # Lower, more water-like frequency
         
-        duration = 0.2
+        duration = 0.4
         samples = int(duration * self.sample_rate)
         t = np.linspace(0, duration, samples)
         
-        # Sharp attack, quick decay
-        wave = 0.5 * np.sin(2 * np.pi * base_freq * t)
+        # Water drop sound characteristics
+        # Initial impact frequency
+        impact_freq = base_freq * 2
+        # Secondary ripple frequency
+        ripple_freq = base_freq * 0.7
         
-        # Add some noise for texture
-        noise = np.random.normal(0, 0.1, samples)
-        wave += noise
+        # Create the water drop impact
+        impact_wave = 0.6 * np.sin(2 * np.pi * impact_freq * t)
+        impact_envelope = np.exp(-t * 25)  # Sharp initial impact
         
-        # Sharp envelope
-        envelope = np.exp(-t * 15)
-        wave *= envelope
+        # Create the ripple effect
+        ripple_wave = 0.4 * np.sin(2 * np.pi * ripple_freq * t)
+        ripple_envelope = np.exp(-t * 8) * np.sin(2 * np.pi * 3 * t)**2  # Oscillating ripples
+        
+        # Combine impact and ripple
+        wave = impact_wave * impact_envelope + ripple_wave * ripple_envelope
+        
+        # Add subtle liquid texture (like tiny bubbles)
+        liquid_noise = 0.05 * np.random.normal(0, 1, samples) * np.exp(-t * 12)
+        wave += liquid_noise
+        
+        # Water-like modulation (slight pitch bend down)
+        pitch_bend = np.exp(-t * 2)  # Frequency drops slightly over time
+        wave *= pitch_bend
         
         return wave
     
-    def generate_success_sound(self) -> np.ndarray:
-        """Generate a success/completion sound"""
-        duration = 1.5
+    def generate_victory_sound(self) -> np.ndarray:
+        """Generate an ethereal victory sound with tubular bells and water echo"""
+        duration = 3.0
         samples = int(duration * self.sample_rate)
         t = np.linspace(0, duration, samples)
         
-        # Ascending arpeggio
-        frequencies = [523, 659, 784, 1047]  # C5, E5, G5, C6
-        wave = np.zeros(samples)
+        # Tubular bell frequencies (golden ratio-based for fractal harmony)
+        golden_ratio = (1 + math.sqrt(5)) / 2
+        base_freq = 220  # A3
+        bell_frequencies = []
+        for i in range(6):
+            freq = base_freq * pow(golden_ratio, i * 0.5)
+            bell_frequencies.append(freq)
         
-        for i, freq in enumerate(frequencies):
-            start_time = i * 0.2
-            note_duration = 0.5
-            start_sample = int(start_time * self.sample_rate)
-            end_sample = min(start_sample + int(note_duration * self.sample_rate), samples)
-            
-            note_samples = end_sample - start_sample
-            note_t = np.linspace(0, note_duration, note_samples)
-            
-            # Generate note
-            note = 0.3 * np.sin(2 * np.pi * freq * note_t)
-            envelope = np.exp(-note_t * 2)
-            note *= envelope
-            
-            wave[start_sample:end_sample] += note
+        final_wave = np.zeros(samples)
         
-        return wave
+        # Create multiple tubular bell strikes with water-like echoes
+        for i, freq in enumerate(bell_frequencies):
+            strike_time = i * 0.3  # Stagger the bell strikes
+            strike_samples = int(strike_time * self.sample_rate)
+            
+            if strike_samples < samples:
+                # Generate tubular bell sound
+                bell_duration = duration - strike_time
+                bell_samples = samples - strike_samples
+                bell_t = np.linspace(0, bell_duration, bell_samples)
+                
+                # Complex bell harmonic structure
+                bell_wave = (
+                    0.6 * np.sin(2 * np.pi * freq * bell_t) +           # Fundamental
+                    0.3 * np.sin(2 * np.pi * freq * 2.76 * bell_t) +    # Bell-like harmonic
+                    0.2 * np.sin(2 * np.pi * freq * 5.4 * bell_t) +     # Higher harmonic
+                    0.1 * np.sin(2 * np.pi * freq * 8.2 * bell_t)       # Sparkle harmonic
+                )
+                
+                # Water-like envelope with multiple echoes
+                primary_envelope = np.exp(-bell_t * 1.5)  # Main decay
+                echo1 = 0.3 * np.exp(-(bell_t - 0.4) * 2.0) * (bell_t >= 0.4)  # First echo
+                echo2 = 0.15 * np.exp(-(bell_t - 0.8) * 2.5) * (bell_t >= 0.8)  # Second echo
+                echo3 = 0.08 * np.exp(-(bell_t - 1.2) * 3.0) * (bell_t >= 1.2)  # Third echo
+                
+                envelope = primary_envelope + echo1 + echo2 + echo3
+                bell_wave *= envelope
+                
+                # Add water-like modulation (slow oscillation like underwater)
+                water_modulation = 1.0 + 0.1 * np.sin(2 * np.pi * 0.5 * bell_t)  # 0.5 Hz oscillation
+                bell_wave *= water_modulation
+                
+                # Add to final wave
+                final_wave[strike_samples:] += bell_wave * (0.8 - i * 0.1)  # Fade each bell
+        
+        return final_wave
+    
+    def generate_success_sound(self) -> np.ndarray:
+        """Generate a success/completion sound - legacy method"""
+        return self.generate_victory_sound()
     
     def generate_ui_sound(self, sound_type: str) -> np.ndarray:
         """Generate UI interaction sounds"""
@@ -398,6 +442,44 @@ class SoundEffectGenerator:
         
         return np.zeros(1024)
 
+class ReverbProcessor:
+    """Adds reverb effects to audio"""
+    
+    def __init__(self, sample_rate: int = 44100):
+        self.sample_rate = sample_rate
+        
+    def apply_reverb(self, audio: np.ndarray, reverb_amount: float = 0.3, 
+                    decay_time: float = 1.5) -> np.ndarray:
+        """Apply reverb effect to audio"""
+        if len(audio) == 0:
+            return audio
+            
+        # Simple reverb using multiple delayed copies
+        reverb_delays = [0.05, 0.1, 0.15, 0.25, 0.35, 0.5, 0.75, 1.0]  # Delay times in seconds
+        reverb_gains = [0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.08, 0.05]  # Corresponding gains
+        
+        output = audio.copy()
+        
+        for delay, gain in zip(reverb_delays, reverb_gains):
+            if delay > decay_time:
+                break
+                
+            delay_samples = int(delay * self.sample_rate)
+            if delay_samples < len(audio):
+                # Create delayed version
+                delayed = np.zeros_like(audio)
+                delayed[delay_samples:] = audio[:-delay_samples] * gain * reverb_amount
+                
+                # Add to output
+                output += delayed
+        
+        # Normalize to prevent clipping
+        max_val = np.max(np.abs(output))
+        if max_val > 1.0:
+            output = output / max_val * 0.95
+            
+        return output
+
 class AudioManager:
     """Manages all audio in the game"""
     
@@ -408,17 +490,25 @@ class AudioManager:
         self.sample_rate = 44100
         self.music_generator = FractalMusicGenerator(self.sample_rate)
         self.sfx_generator = SoundEffectGenerator(self.sample_rate)
+        self.reverb_processor = ReverbProcessor(self.sample_rate)
         
         self.music_channel = pygame.mixer.Channel(0)
         self.sfx_channel = pygame.mixer.Channel(1)
         
-        self.music_volume = 0.4  # Hip-hop music volume
+        self.music_volume = 0.4  # Heartbeat music volume
         self.sfx_volume = 0.7
         
-        # Generate initial hip-hop track
+        # Track transition system
         self.current_track = None
+        self.next_track = None
         self.music_started = False
-        self.generate_new_hip_hop_track()
+        self.track_start_time = 0
+        self.track_transition_duration = 120.0  # 2 minutes in seconds
+        self.is_transitioning = False
+        self.transition_progress = 0.0
+        
+        # Generate initial heartbeat track
+        self.generate_new_heartbeat_track()
         
     def numpy_to_pygame_sound(self, wave: np.ndarray) -> pygame.mixer.Sound:
         """Convert numpy array to pygame Sound object"""
@@ -433,47 +523,62 @@ class AudioManager:
             
         return pygame.mixer.Sound(stereo_wave)
     
-    def generate_new_hip_hop_track(self):
-        """Generate new hip-hop inspired music track"""
+    def generate_new_heartbeat_track(self):
+        """Generate new heartbeat-paced music track"""
         def generate_async():
-            # Generate a longer hip-hop track (45 seconds)
-            hip_hop_track = self.music_generator.create_hip_hop_track(45.0)
-            self.current_track = self.numpy_to_pygame_sound(hip_hop_track)
+            # Generate a longer heartbeat track (150 seconds to allow smooth transitions)
+            heartbeat_track = self.music_generator.create_hip_hop_track(150.0)
+            
+            if self.current_track is None:
+                self.current_track = self.numpy_to_pygame_sound(heartbeat_track)
+            else:
+                self.next_track = self.numpy_to_pygame_sound(heartbeat_track)
         
         # Generate in background thread to avoid blocking
         Thread(target=generate_async, daemon=True).start()
     
     def start_background_music(self):
-        """Start playing background hip-hop music - call this from title screen"""
+        """Start playing background heartbeat music - call this from title screen"""
         if not self.music_started and self.current_track:
             self.music_channel.play(self.current_track, loops=-1)
             self.music_channel.set_volume(self.music_volume)
             self.music_started = True
+            self.track_start_time = time.time()
+            
+            # Start generating next track in advance
+            self.generate_new_heartbeat_track()
     
     def play_ambient_music(self):
         """Legacy method - now starts hip-hop background music"""
         self.start_background_music()
     
     def play_merge_sound(self, color: Tuple[int, int, int]):
-        """Play merge sound effect"""
+        """Play merge sound effect with reverb"""
         wave = self.sfx_generator.generate_merge_sound(color)
-        sound = self.numpy_to_pygame_sound(wave)
+        wave_with_reverb = self.reverb_processor.apply_reverb(wave, 0.4, 1.2)
+        sound = self.numpy_to_pygame_sound(wave_with_reverb)
         self.sfx_channel.play(sound)
         self.sfx_channel.set_volume(self.sfx_volume)
     
     def play_bounce_sound(self, color: Tuple[int, int, int]):
-        """Play bounce sound effect"""
+        """Play bounce sound effect with reverb"""
         wave = self.sfx_generator.generate_bounce_sound(color)
-        sound = self.numpy_to_pygame_sound(wave)
+        wave_with_reverb = self.reverb_processor.apply_reverb(wave, 0.2, 0.8)
+        sound = self.numpy_to_pygame_sound(wave_with_reverb)
+        self.sfx_channel.play(sound)
+        self.sfx_channel.set_volume(self.sfx_volume)
+    
+    def play_victory_sound(self):
+        """Play ethereal victory sound with deep reverb"""
+        wave = self.sfx_generator.generate_victory_sound()
+        wave_with_reverb = self.reverb_processor.apply_reverb(wave, 0.6, 2.5)  # Deep, long reverb
+        sound = self.numpy_to_pygame_sound(wave_with_reverb)
         self.sfx_channel.play(sound)
         self.sfx_channel.set_volume(self.sfx_volume)
     
     def play_success_sound(self):
-        """Play success sound"""
-        wave = self.sfx_generator.generate_success_sound()
-        sound = self.numpy_to_pygame_sound(wave)
-        self.sfx_channel.play(sound)
-        self.sfx_channel.set_volume(self.sfx_volume)
+        """Play success sound - legacy method, now uses victory sound"""
+        self.play_victory_sound()
     
     def play_ui_sound(self, sound_type: str):
         """Play UI sound"""
@@ -497,15 +602,60 @@ class AudioManager:
         pygame.mixer.stop()
     
     def update(self):
-        """Update audio system"""
+        """Update audio system - handles smooth track transitions"""
         # Start music if not already started and track is ready
         if not self.music_started and self.current_track:
             self.start_background_music()
         
-        # Check if we need to restart music
-        if not self.music_channel.get_busy() and self.current_track:
-            self.start_background_music()
+        # Handle track transitions every 2 minutes
+        if self.music_started:
+            current_time = time.time()
+            elapsed_time = current_time - self.track_start_time
+            
+            # Check if it's time to transition to next track
+            if elapsed_time >= self.track_transition_duration and self.next_track and not self.is_transitioning:
+                self.start_track_transition()
+            
+            # Handle smooth transition
+            if self.is_transitioning:
+                self.update_track_transition()
+    
+    def start_track_transition(self):
+        """Start smooth transition to next track"""
+        if self.next_track:
+            self.is_transitioning = True
+            self.transition_progress = 0.0
+            
+            # Start playing next track at low volume
+            self.music_channel.play(self.next_track, loops=-1)
+            self.music_channel.set_volume(0.0)
+    
+    def update_track_transition(self):
+        """Update smooth track transition"""
+        transition_speed = 0.02  # How fast to transition (2% per frame)
+        self.transition_progress += transition_speed
         
-        # Occasionally generate new hip-hop track for variety
-        if random.random() < 0.0005:  # Low probability per frame
-            self.generate_new_hip_hop_track()
+        if self.transition_progress >= 1.0:
+            # Transition complete
+            self.current_track = self.next_track
+            self.next_track = None
+            self.is_transitioning = False
+            self.track_start_time = time.time()
+            self.music_channel.set_volume(self.music_volume)
+            
+            # Generate next track in advance
+            self.generate_new_heartbeat_track()
+        else:
+            # Smoothly fade between tracks
+            # Current track fades out, next track fades in
+            fade_volume = self.music_volume * (1.0 - self.transition_progress)
+            self.music_channel.set_volume(fade_volume)
+    
+    def get_current_beat_time(self):
+        """Get current beat timing for pulse effects"""
+        if not self.music_started:
+            return 0.0
+        
+        current_time = time.time()
+        elapsed_time = (current_time - self.track_start_time) % self.music_generator.beat_duration
+        return elapsed_time / self.music_generator.beat_duration  # 0.0 to 1.0

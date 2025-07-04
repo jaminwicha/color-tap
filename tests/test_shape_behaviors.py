@@ -1,5 +1,6 @@
 import unittest
 import math
+import pygame
 from unittest.mock import Mock, patch
 from shape_behaviors import Circle, Square, Triangle, Rectangle
 from config import Color
@@ -76,19 +77,28 @@ class TestShapeBehaviors(unittest.TestCase):
     def test_circle_draw(self, mock_draw_circle):
         mock_screen = Mock()
         self.circle.draw(mock_screen)
-        mock_draw_circle.assert_called_once_with(mock_screen, Color.RED, (100, 100), 30)
+        # New drawing method calls circle multiple times for bevel effect
+        self.assertGreater(mock_draw_circle.call_count, 1)
+        # Check that the main circle call is made
+        mock_draw_circle.assert_any_call(mock_screen, Color.RED, (100, 100), 30)
     
     @patch('pygame.draw.rect')
     def test_square_draw(self, mock_draw_rect):
         mock_screen = Mock()
         self.square.draw(mock_screen)
-        mock_draw_rect.assert_called_once_with(mock_screen, Color.BLUE, (175, 175, 50, 50))
+        # Check that draw was called with the square
+        self.assertGreater(mock_draw_rect.call_count, 0)
+        # Check that the main rect call is made
+        mock_draw_rect.assert_any_call(mock_screen, Color.BLUE, pygame.Rect(175, 175, 50, 50))
     
     @patch('pygame.draw.rect')
     def test_rectangle_draw(self, mock_draw_rect):
         mock_screen = Mock()
         self.rectangle.draw(mock_screen)
-        mock_draw_rect.assert_called_once_with(mock_screen, Color.YELLOW, (370, 380, 60, 40))
+        # Check that draw was called with the rectangle
+        self.assertGreater(mock_draw_rect.call_count, 0)
+        # Check that the main rect call is made
+        mock_draw_rect.assert_any_call(mock_screen, Color.YELLOW, pygame.Rect(370, 380, 60, 40))
     
     def test_bounce_physics(self):
         circle1 = Circle(100, 100, Color.RED, 30)

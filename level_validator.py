@@ -1,6 +1,6 @@
 import math
 from collections import Counter
-from fused_shapes import FusedShape
+from nested_shapes import NestedShape, StaticShape
 
 class LevelValidator:
     """Validates level layouts for playability and aesthetic quality"""
@@ -46,9 +46,9 @@ class LevelValidator:
         color_counts = Counter()
         
         for shape in shapes:
-            if isinstance(shape, FusedShape):
+            if isinstance(shape, NestedShape):
                 # Fused shapes count as multiple shapes of the same color
-                color_counts[shape.color] += shape.get_component_count()
+                color_counts[shape.color] += shape.get_shell_count()
             else:
                 color_counts[shape.color] += 1
         
@@ -75,7 +75,7 @@ class LevelValidator:
                     continue
                 
                 # Skip if either shape is fused (fused shapes are allowed to "overlap")
-                if isinstance(shape1, FusedShape) or isinstance(shape2, FusedShape):
+                if isinstance(shape1, NestedShape) or isinstance(shape2, NestedShape):
                     continue
                 
                 distance = shape1.get_distance_to(shape2)
@@ -122,8 +122,8 @@ class LevelValidator:
         # Count colors
         color_counts = Counter()
         for shape in shapes:
-            if isinstance(shape, FusedShape):
-                color_counts[shape.color] += shape.get_component_count()
+            if isinstance(shape, NestedShape):
+                color_counts[shape.color] += shape.get_shell_count()
             else:
                 color_counts[shape.color] += 1
         
@@ -148,7 +148,7 @@ class LevelValidator:
         # Calculate total area occupied by shapes
         total_shape_area = 0
         for shape in shapes:
-            if isinstance(shape, FusedShape):
+            if isinstance(shape, NestedShape):
                 # Approximate area for fused shapes
                 total_shape_area += shape.total_width * shape.total_height * 0.7  # Account for gaps
             else:
@@ -174,7 +174,7 @@ class LevelValidator:
         fixed_shapes = []
         
         for shape in shapes:
-            if isinstance(shape, FusedShape):
+            if isinstance(shape, NestedShape):
                 fixed_shapes.append(shape)
                 continue
             
@@ -201,7 +201,7 @@ class LevelValidator:
                 
                 valid_position = True
                 for existing_shape in fixed_shapes:
-                    if isinstance(existing_shape, FusedShape):
+                    if isinstance(existing_shape, NestedShape):
                         continue
                     
                     distance = temp_shape.get_distance_to(existing_shape)

@@ -43,6 +43,7 @@ class Game:
         self.level_persistence = LevelPersistence()
         self.current_level_data = None
         self.return_to_menu = False
+        self.auto_advance_timer = 0.0  # Timer for auto-advancing to next level
         
         # Show welcome message
         welcome_msg = FriendlyMessages.get_random_message("welcome")
@@ -90,8 +91,11 @@ class Game:
         self.show_impossible_popup = False
         self.level_complete = False
         self.last_merged_color = None
-        # Start with palette background, will change as shapes merge
-        self.background_color = self.current_palette.background
+        # Start with palette background, will change as shapes merge and persist
+        if not hasattr(self, 'persistent_background'):
+            self.background_color = self.current_palette.background
+        else:
+            self.background_color = self.persistent_background
     
     def reset_to_original_level(self):
         if self.current_level_data:
@@ -119,7 +123,8 @@ class Game:
             self.dragging_shape.y = pos[1] - self.dragging_shape.drag_offset_y
     
     def check_collisions(self):
-        shapes_to_remove = []
+        from nested_shapes import NestedShape, StaticShape
+        collision_occurred = False
         
         for i, shape1 in enumerate(self.shapes):
             for j, shape2 in enumerate(self.shapes):
@@ -128,37 +133,10 @@ class Game:
                 
                 if shape1.is_colliding_with(shape2):
                     if shape1.color == shape2.color:
-                        # Same color merge
-                        self.last_merged_color = shape1.color
-                        
-                        # Change background color to the merged color
-                        self.background_color = shape1.color
-                        
-                        # Add animated background transition with growing rectangle
-                        merge_center_x = (shape1.x + shape2.x) // 2
-                        merge_center_y = (shape1.y + shape2.y) // 2
-                        self.animation_manager.add_background_transition(
-                            merge_center_x, merge_center_y, shape1.color
-                        )
-                        
-                        # Add pulse animation for extra effect
-                        self.animation_manager.add_background_pulse(
-                            merge_center_x, merge_center_y, shape1.color
-                        )
-                        
-                        # Add merge visual effects
-                        self.animation_manager.add_merge_effect(
-                            merge_center_x, merge_center_y, shape1.color
-                        )
-                        
-                        # Play merge sound
-                        self.audio_manager.play_merge_sound(shape1.color)
-                        
-                        # Show encouraging message
-                        merge_msg = FriendlyMessages.get_random_message("successful_merge")
-                        self.message_display.show_message(merge_msg, MessageType.SUCCESS, 2.0)
-                        
-                        shapes_to_remove.extend([shape1, shape2])
+                        # Same color collision - trigger mass elimination
+                        self.handle_same_color_collision(shape1, shape2)
+                        collision_occurred = True
+                        return  # Exit early to process elimination
                     else:
                         # Different color bounce
                         shape1.bounce_off(shape2)
@@ -175,20 +153,126 @@ class Game:
                         if random.random() < 0.3:  # 30% chance
                             bounce_msg = FriendlyMessages.get_random_message("bounce_encouragement")
                             self.message_display.show_message(bounce_msg, MessageType.INFO, 1.5)
+    
+    def handle_same_color_collision(self, shape1, shape2):
+        """Handle collision between same-colored shapes - nested shell elimination"""
+        from nested_shapes import NestedShape, StaticShape
+        from collections import defaultdict
         
-        # Remove shapes one by one and check impossibility after each removal
+        collision_color = shape1.color
+        self.last_merged_color = collision_color
+        
+        # Change background color to the merged color and make it persistent
+        self.background_color = collision_color
+        self.persistent_background = collision_color
+        
+        # Add animated effects
+        merge_center_x = (shape1.x + shape2.x) // 2
+        merge_center_y = (shape1.y + shape2.y) // 2
+        self.animation_manager.add_background_transition(
+            merge_center_x, merge_center_y, collision_color
+        )
+        self.animation_manager.add_background_pulse(
+            merge_center_x, merge_center_y, collision_color
+        )
+        self.animation_manager.add_merge_effect(
+            merge_center_x, merge_center_y, collision_color
+        )
+        
+        # Play merge sound
+        self.audio_manager.play_merge_sound(collision_color)
+        
+        # Find ALL shapes of the same color and handle nested logic
+        shapes_to_remove = []
+        nested_shapes_modified = []
+        
+        for shape in self.shapes:
+            if isinstance(shape, NestedShape):
+                if shape.color == collision_color:  # Outer shell matches
+                    # Remove outer shell (like peeling matryoshka doll)
+                    if shape.remove_outer_shell():
+                        if shape.is_empty():
+                            shapes_to_remove.append(shape)
+                        else:
+                            nested_shapes_modified.append(shape)
+            elif isinstance(shape, StaticShape):
+                if shape.color == collision_color:
+                    # Static shapes can also lose outer shells
+                    if shape.remove_outer_shell():
+                        if shape.is_empty():
+                            shapes_to_remove.append(shape)
+                        else:
+                            nested_shapes_modified.append(shape)
+            else:
+                if shape.color == collision_color:
+                    shapes_to_remove.append(shape)
+        
+        # Remove all same-colored regular shapes and empty nested shapes
         for shape in shapes_to_remove:
             if shape in self.shapes:
                 self.shapes.remove(shape)
-                # Check if level is still possible after each removal
-                self.check_level_possibility()
         
-        if len(self.shapes) == 0 and self.last_merged_color == self.target_color:
-            self.level_complete = True
-            # Play success sound and show celebration message
-            self.audio_manager.play_success_sound()
-            success_msg = FriendlyMessages.get_random_message("level_complete")
-            self.message_display.show_message(success_msg, MessageType.CELEBRATION, 5.0)
+        # Check impossibility after each removal
+        self.check_level_possibility()
+        
+        # Check for level completion
+        self.check_level_completion()
+        
+        # Show encouraging message
+        total_affected = len(shapes_to_remove) + len(nested_shapes_modified)
+        if total_affected > 2:
+            merge_msg = f"Magnificent! {total_affected} shapes affected! 🎯"
+        elif len(nested_shapes_modified) > 0:
+            merge_msg = "Shell removed! Nested shape revealed! 🪆"
+        else:
+            merge_msg = FriendlyMessages.get_random_message("successful_merge")
+        self.message_display.show_message(merge_msg, MessageType.SUCCESS, 2.0)
+    
+    def check_level_completion(self):
+        """Check if the level is complete"""
+        from nested_shapes import NestedShape, StaticShape
+        
+        # Filter out static shapes for completion check
+        movable_shapes = [shape for shape in self.shapes 
+                         if not isinstance(shape, StaticShape)]
+        
+        if len(movable_shapes) == 0:
+            # All movable shapes eliminated
+            if self.last_merged_color == self.target_color:
+                self.level_complete = True
+                self.audio_manager.play_victory_sound()
+                success_msg = FriendlyMessages.get_random_message("level_complete")
+                self.message_display.show_message(success_msg, MessageType.CELEBRATION, 3.0)
+                # Auto-advance to next level after a short delay
+                self.auto_advance_timer = 3.0
+            else:
+                # Wrong final color
+                self.show_impossible_popup = True
+        else:
+            # Check if current state can still reach target color
+            from collections import Counter
+            color_counts = Counter()
+            
+            for shape in movable_shapes:
+                if isinstance(shape, NestedShape):
+                    # Count all shells in nested shapes
+                    for shell_color, _ in shape.shells:
+                        color_counts[shell_color] += 1
+                else:
+                    color_counts[shape.color] += 1
+            
+            # If target color doesn't exist or can't be the final remaining color
+            target_count = color_counts.get(self.target_color, 0)
+            if target_count == 0:
+                self.show_impossible_popup = True
+            elif len(movable_shapes) == 1 and movable_shapes[0].color == self.target_color:
+                # Single movable shape of target color remaining
+                self.level_complete = True
+                self.audio_manager.play_victory_sound()
+                success_msg = FriendlyMessages.get_random_message("level_complete")
+                self.message_display.show_message(success_msg, MessageType.CELEBRATION, 3.0)
+                # Auto-advance to next level after a short delay
+                self.auto_advance_timer = 3.0
     
     def check_level_possibility(self):
         if len(self.shapes) > 0 and not LevelGenerator.is_level_winnable(self.shapes, self.target_color):
@@ -216,12 +300,12 @@ class Game:
         pygame.draw.rect(self.screen, Color.BLACK, (popup_x, popup_y, popup_width, popup_height), 3)
         
         font = pygame.font.Font(None, 32)
-        title_text = font.render("Level Impossible!", True, Color.RED)
+        title_text = font.render("Try Again!", True, Color.RED)
         title_rect = title_text.get_rect(center=(popup_x + popup_width // 2, popup_y + 40))
         self.screen.blit(title_text, title_rect)
         
         font_small = pygame.font.Font(None, 24)
-        msg_text = font_small.render("No valid solution found.", True, Color.BLACK)
+        msg_text = font_small.render("This configuration has no solution.", True, Color.BLACK)
         msg_rect = msg_text.get_rect(center=(popup_x + popup_width // 2, popup_y + 80))
         self.screen.blit(msg_text, msg_rect)
         
@@ -313,8 +397,23 @@ class Game:
             self.message_display.update(dt)
             self.audio_manager.update()
             
+            # Handle auto-advance timer
+            if self.auto_advance_timer > 0:
+                self.auto_advance_timer -= dt
+                if self.auto_advance_timer <= 0:
+                    # Auto-advance to next level
+                    self.create_new_level()
+                    self.auto_advance_timer = 0
+            
+            # Get current beat time for pulsing effects
+            beat_time = self.audio_manager.get_current_beat_time()
+            
             for shape in self.shapes:
-                shape.update()
+                # Only movable shapes pulse with music
+                if hasattr(shape, 'is_static') and shape.is_static:
+                    shape.update()  # Static shapes don't pulse
+                else:
+                    shape.update(beat_time)  # Movable shapes pulse with beat
             
             self.check_collisions()
             
